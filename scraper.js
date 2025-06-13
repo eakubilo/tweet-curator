@@ -10,11 +10,7 @@
     return;
   }
 
-  // 2) Grok API info
-  const GROK_KEY = '';
-  const API_URL  = 'https://api.x.ai/v1/chat/completions';
-
-  // 3) walk each tweet cell
+  // walk each tweet cell
   const cells = [...document.querySelectorAll('[data-testid="cellInnerDiv"]')];
   for (const cell of cells) {
     // stop at “Discover more”
@@ -56,9 +52,10 @@ Tweet:
       });
     });
 
-    // if it’s a “No”, highlight in red
+    // if it’s a “No”, collapse the tweet
     if (/^no$/i.test(verdict)) {
-      textNode.style.color = 'red';
+      cell.style.height   = '0px';
+      cell.style.overflow = 'hidden';
     }
   }
 

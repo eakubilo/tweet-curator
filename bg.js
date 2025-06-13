@@ -3,7 +3,12 @@ chrome.runtime.onMessage.addListener(async (msg, sender) => {
   if (!msg.grokPrompt) return;
 
   const API_URL  = 'https://api.x.ai/v1/chat/completions';
-  const GROK_KEY = 'xai-chvcMDSdXqc7ozUQreHKLqnA3EBvDidq7ReIZFMRCspVcDnNpOeDveXyFjFBRuftp6mw1lyiIE5u9d8J';
+  const { grokKey } = await chrome.storage.local.get('grokKey');
+  if (!grokKey) {
+    console.error('Grok API key not set.');
+    return;
+  }
+  const GROK_KEY = grokKey;
 
   let summary = 'No';
   try {

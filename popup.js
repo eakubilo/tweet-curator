@@ -11,6 +11,7 @@ const toggleAdsBtn    = document.getElementById('toggleAds');
 const modelClaude     = document.getElementById('modelClaude');
 const modelGpt        = document.getElementById('modelGpt');
 const modelGrok       = document.getElementById('modelGrok');
+const filterModeSel   = document.getElementById('filterMode');
 
 function showTab(which) {
   filteringTab.classList.remove('active');
@@ -44,6 +45,9 @@ function saveModels() {
 modelClaude.addEventListener('change', saveModels);
 modelGpt.addEventListener('change', saveModels);
 modelGrok.addEventListener('change', saveModels);
+filterModeSel.addEventListener('change', () => {
+  chrome.storage.local.set({ filterMode: filterModeSel.value });
+});
 
 toggleAdsBtn.addEventListener('click', async () => {
   let { filterAds } = await chrome.storage.local.get('filterAds');
@@ -53,12 +57,13 @@ toggleAdsBtn.addEventListener('click', async () => {
 });
 
 async function updateUI() {
-  const { checking, filter, grokKey, filterAds, models } = await chrome.storage.local.get([
+  const { checking, filter, grokKey, filterAds, models, filterMode } = await chrome.storage.local.get([
     'checking',
     'filter',
     'grokKey',
     'filterAds',
-    'models'
+    'models',
+    'filterMode'
   ]);
   input.value = filter || '';
   keyInput.value = grokKey || '';
@@ -69,6 +74,7 @@ async function updateUI() {
   modelClaude.checked = m.has('claude');
   modelGpt.checked    = m.has('gpt');
   modelGrok.checked   = m.has('grok');
+  filterModeSel.value = filterMode || 'hide';
 }
 
 updateUI();
@@ -85,7 +91,13 @@ btn.addEventListener('click', async () => {
       return;
     }
     const models = getSelectedModels();
-    await chrome.storage.local.set({ filter, grokKey, checking: true, models });
+    await chrome.storage.local.set({
+      filter,
+      grokKey,
+      checking: true,
+      models,
+      filterMode: filterModeSel.value
+    });
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },

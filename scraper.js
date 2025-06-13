@@ -6,21 +6,13 @@
   let grokKey = '';
   let filterAds = true;
   let models = ['grok'];
-  let filterMode = 'hide';
 
   async function loadConfig() {
-    const cfg = await chrome.storage.local.get([
-      'filter',
-      'grokKey',
-      'filterAds',
-      'models',
-      'filterMode'
-    ]);
+    const cfg = await chrome.storage.local.get(['filter', 'grokKey', 'filterAds', 'models']);
     filter = cfg.filter || '';
     grokKey = cfg.grokKey || '';
     filterAds = cfg.filterAds !== false;
     models = cfg.models || ['grok'];
-    filterMode = cfg.filterMode || 'hide';
   }
 
   async function processCell(cell) {
@@ -68,13 +60,8 @@ Tweet:
     });
 
     if (/^no$/i.test(verdict)) {
-      if (filterMode === 'highlight') {
-        cell.style.backgroundColor = '#fff3cd';
-        cell.style.opacity = '0.6';
-      } else {
-        cell.style.height   = '0px';
-        cell.style.overflow = 'hidden';
-      }
+      cell.style.height   = '0px';
+      cell.style.overflow = 'hidden';
     }
   }
 
@@ -105,11 +92,7 @@ Tweet:
       if ('checking' in changes) {
         changes.checking.newValue ? start() : stop();
       }
-      if ('filter' in changes ||
-          'grokKey' in changes ||
-          'filterAds' in changes ||
-          'models' in changes ||
-          'filterMode' in changes) {
+      if ('filter' in changes || 'grokKey' in changes || 'filterAds' in changes || 'models' in changes) {
         loadConfig();
       }
     }

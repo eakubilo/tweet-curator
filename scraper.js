@@ -5,7 +5,7 @@
   let filters = [];
   let apiKeys = {};
   let provider = 'grok';
-  let model = 'grok-3-latest';
+  let model = 'grok-3';
   let filterAds = true;
 
   async function loadConfig() {
@@ -19,7 +19,7 @@
     filters = cfg.filters || [];
     apiKeys = cfg.apiKeys || {};
     provider = cfg.provider || 'grok';
-    model = cfg.model || 'grok-3-latest';
+    model = cfg.model || 'grok-3';
     filterAds = cfg.filterAds !== false;
   }
 

@@ -9,6 +9,8 @@
   ],
   "host_permissions": [
     "https://api.x.ai/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
     "https://x.com/*",
     "https://twitter.com/*"
   ],

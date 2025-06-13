@@ -4,13 +4,24 @@
   let observer;
   let filter = '';
   let grokKey = '';
+  let gptKey = '';
+  let claudeKey = '';
   let filterAds = true;
   let models = ['grok'];
 
   async function loadConfig() {
-    const cfg = await chrome.storage.local.get(['filter', 'grokKey', 'filterAds', 'models']);
+    const cfg = await chrome.storage.local.get([
+      'filter',
+      'grokKey',
+      'gptKey',
+      'claudeKey',
+      'filterAds',
+      'models'
+    ]);
     filter = cfg.filter || '';
     grokKey = cfg.grokKey || '';
+    gptKey = cfg.gptKey || '';
+    claudeKey = cfg.claudeKey || '';
     filterAds = cfg.filterAds !== false;
     models = cfg.models || ['grok'];
   }
@@ -32,7 +43,11 @@
       cell.style.overflow = 'hidden';
       return;
     }
-    if (!filter || !grokKey || !models.includes('grok')) return;
+    if (!filter) return;
+    const needGrok  = models.includes('grok') && !grokKey;
+    const needGpt   = models.includes('gpt') && !gptKey;
+    const needClaude= models.includes('claude') && !claudeKey;
+    if (needGrok || needGpt || needClaude) return;
 
     const textNode = cell.querySelector('[data-testid="tweetText"]');
     if (!textNode) return;
@@ -48,7 +63,7 @@ Tweet:
 `.trim();
 
     const id = crypto.randomUUID();
-    chrome.runtime.sendMessage({ grokPrompt: prompt, id });
+    chrome.runtime.sendMessage({ prompt, id });
 
     const verdict = await new Promise(res => {
       chrome.runtime.onMessage.addListener(function cb(msg) {
@@ -92,7 +107,14 @@ Tweet:
       if ('checking' in changes) {
         changes.checking.newValue ? start() : stop();
       }
-      if ('filter' in changes || 'grokKey' in changes || 'filterAds' in changes || 'models' in changes) {
+      if (
+        'filter' in changes ||
+        'grokKey' in changes ||
+        'gptKey' in changes ||
+        'claudeKey' in changes ||
+        'filterAds' in changes ||
+        'models' in changes
+      ) {
         loadConfig();
       }
     }

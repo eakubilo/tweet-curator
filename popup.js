@@ -2,6 +2,8 @@
 const btn        = document.getElementById('go');
 const input      = document.getElementById('filter');
 const keyInput   = document.getElementById('grokKey');
+const gptKeyInput    = document.getElementById('gptKey');
+const claudeKeyInput = document.getElementById('claudeKey');
 const status     = document.getElementById('status');
 const filteringTabBtn = document.getElementById('filteringTabBtn');
 const adBlockTabBtn   = document.getElementById('adBlockTabBtn');
@@ -53,15 +55,19 @@ toggleAdsBtn.addEventListener('click', async () => {
 });
 
 async function updateUI() {
-  const { checking, filter, grokKey, filterAds, models } = await chrome.storage.local.get([
+  const { checking, filter, grokKey, gptKey, claudeKey, filterAds, models } = await chrome.storage.local.get([
     'checking',
     'filter',
     'grokKey',
+    'gptKey',
+    'claudeKey',
     'filterAds',
     'models'
   ]);
   input.value = filter || '';
   keyInput.value = grokKey || '';
+  gptKeyInput.value = gptKey || '';
+  claudeKeyInput.value = claudeKey || '';
   btn.textContent = checking ? 'Stop Checking' : 'Check Tweets';
   status.textContent = checking ? 'Checking tweets…' : '';
   toggleAdsBtn.textContent = filterAds ? 'Ad Filtering: On' : 'Ad Filtering: Off';
@@ -80,12 +86,24 @@ btn.addEventListener('click', async () => {
   if (checking) {
     const filter = input.value.trim();
     const grokKey = keyInput.value.trim();
-    if (!filter || !grokKey) {
-      status.textContent = 'Please enter both a filter phrase and API key.';
+    const gptKey = gptKeyInput.value.trim();
+    const claudeKey = claudeKeyInput.value.trim();
+    const models = getSelectedModels();
+    if (!filter ||
+        (models.includes('grok') && !grokKey) ||
+        (models.includes('gpt') && !gptKey) ||
+        (models.includes('claude') && !claudeKey)) {
+      status.textContent = 'Please enter a filter phrase and required API keys.';
       return;
     }
-    const models = getSelectedModels();
-    await chrome.storage.local.set({ filter, grokKey, checking: true, models });
+    await chrome.storage.local.set({
+      filter,
+      grokKey,
+      gptKey,
+      claudeKey,
+      checking: true,
+      models
+    });
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },

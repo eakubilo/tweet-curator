@@ -4,11 +4,15 @@
   let observer;
   let filter = '';
   let grokKey = '';
+  let filterAds = true;
+  let models = ['grok'];
 
   async function loadConfig() {
-    const cfg = await chrome.storage.local.get(['filter', 'grokKey']);
+    const cfg = await chrome.storage.local.get(['filter', 'grokKey', 'filterAds', 'models']);
     filter = cfg.filter || '';
     grokKey = cfg.grokKey || '';
+    filterAds = cfg.filterAds !== false;
+    models = cfg.models || ['grok'];
   }
 
   async function processCell(cell) {
@@ -22,13 +26,13 @@
       return;
     }
     // hide ads
-    if ([...cell.querySelectorAll('span.css-1jxf684')]
+    if (filterAds && [...cell.querySelectorAll('span.css-1jxf684')]
           .some(s => s.textContent.trim() === 'Ad')) {
       cell.style.height   = '0px';
       cell.style.overflow = 'hidden';
       return;
     }
-    if (!filter || !grokKey) return;
+    if (!filter || !grokKey || !models.includes('grok')) return;
 
     const textNode = cell.querySelector('[data-testid="tweetText"]');
     if (!textNode) return;
@@ -88,7 +92,7 @@ Tweet:
       if ('checking' in changes) {
         changes.checking.newValue ? start() : stop();
       }
-      if ('filter' in changes || 'grokKey' in changes) {
+      if ('filter' in changes || 'grokKey' in changes || 'filterAds' in changes || 'models' in changes) {
         loadConfig();
       }
     }

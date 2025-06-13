@@ -1,35 +1,37 @@
 // scraper.js
-(async () => {
-  // 1) pull in the filter phrase
-  const { filter } = await new Promise(res =>
-    chrome.storage.local.get('filter', res)
-  );
-  if (!filter) {
-    console.warn('No filter set.');
-    chrome.runtime.sendMessage({ done: true });
-    return;
+(function () {
+  const CHECKED_ATTR = 'data-tc-checked';
+  let observer;
+  let filter = '';
+  let grokKey = '';
+
+  async function loadConfig() {
+    const cfg = await chrome.storage.local.get(['filter', 'grokKey']);
+    filter = cfg.filter || '';
+    grokKey = cfg.grokKey || '';
   }
 
-  // walk each tweet cell
-  const cells = [...document.querySelectorAll('[data-testid="cellInnerDiv"]')];
-  for (const cell of cells) {
+  async function processCell(cell) {
+    if (cell.hasAttribute(CHECKED_ATTR)) return;
+    cell.setAttribute(CHECKED_ATTR, 'true');
+
     // stop at “Discover more”
     if ([...cell.querySelectorAll('span.css-1jxf684')]
-         .some(s => s.textContent.trim() === 'Discover more')) {
-      break;
+          .some(s => s.textContent.trim() === 'Discover more')) {
+      stop();
+      return;
     }
     // skip ads
     if ([...cell.querySelectorAll('span.css-1jxf684')]
-         .some(s => s.textContent.trim() === 'Ad')) {
-      continue;
+          .some(s => s.textContent.trim() === 'Ad')) {
+      return;
     }
 
-    // get its text node
     const textNode = cell.querySelector('[data-testid="tweetText"]');
-    if (!textNode) continue;
+    if (!textNode) return;
     const text = textNode.innerText.trim();
+    if (!text) return;
 
-    // build the Grok prompt
     const prompt = `
 Does this tweet match the filter phrase "${filter}"?
 Reply “Yes” or “No” only.
@@ -38,11 +40,9 @@ Tweet:
 "${text}"
 `.trim();
 
-    // send to Grok via bg.js
     const id = crypto.randomUUID();
     chrome.runtime.sendMessage({ grokPrompt: prompt, id });
 
-    // await verdict
     const verdict = await new Promise(res => {
       chrome.runtime.onMessage.addListener(function cb(msg) {
         if (msg.id === id) {
@@ -52,13 +52,47 @@ Tweet:
       });
     });
 
-    // if it’s a “No”, collapse the tweet
     if (/^no$/i.test(verdict)) {
       cell.style.height   = '0px';
       cell.style.overflow = 'hidden';
     }
   }
 
-  // signal done
-  chrome.runtime.sendMessage({ done: true });
+  async function scan() {
+    await loadConfig();
+    if (!filter || !grokKey) return;
+    const cells = [...document.querySelectorAll('[data-testid="cellInnerDiv"]')];
+    for (const c of cells) {
+      await processCell(c);
+    }
+  }
+
+  function start() {
+    if (observer) return;
+    scan();
+    observer = new MutationObserver(scan);
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function stop() {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+  }
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local') {
+      if ('checking' in changes) {
+        changes.checking.newValue ? start() : stop();
+      }
+      if ('filter' in changes || 'grokKey' in changes) {
+        loadConfig();
+      }
+    }
+  });
+
+  chrome.storage.local.get('checking').then(({ checking }) => {
+    if (checking) start();
+  });
 })();

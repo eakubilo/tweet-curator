@@ -26,7 +26,40 @@
     models = cfg.models || ['grok'];
   }
 
-  async function processCell(cell) {
+  const BATCH_SIZE = 5;
+  const queue = [];
+  const cellMap = new Map();
+  let sending = false;
+
+  async function maybeSendBatch(force = false) {
+    if (sending) return;
+    if (!force && queue.length < BATCH_SIZE) return;
+    if (queue.length === 0) return;
+    sending = true;
+    const batch = queue.splice(0, BATCH_SIZE);
+    const ids = batch.map(b => b.id);
+    const tweets = batch.map(b => b.text);
+    chrome.runtime.sendMessage({ tweets, ids, filter });
+  }
+
+  chrome.runtime.onMessage.addListener(msg => {
+    if (Array.isArray(msg.ids) && Array.isArray(msg.summaries)) {
+      msg.ids.forEach((id, idx) => {
+        const cell = cellMap.get(id);
+        if (!cell) return;
+        const verdict = (msg.summaries[idx] || '').trim();
+        if (/^no$/i.test(verdict)) {
+          cell.style.height = '0px';
+          cell.style.overflow = 'hidden';
+        }
+        cellMap.delete(id);
+      });
+      sending = false;
+      maybeSendBatch(true);
+    }
+  });
+
+  function processCell(cell) {
     if (cell.hasAttribute(CHECKED_ATTR)) return;
     cell.setAttribute(CHECKED_ATTR, 'true');
 
@@ -54,38 +87,19 @@
     const text = textNode.innerText.trim();
     if (!text) return;
 
-    const prompt = `
-Does this tweet match the filter phrase "${filter}"?
-Reply “Yes” or “No” only.
-
-Tweet:
-"${text}"
-`.trim();
-
     const id = crypto.randomUUID();
-    chrome.runtime.sendMessage({ prompt, id });
-
-    const verdict = await new Promise(res => {
-      chrome.runtime.onMessage.addListener(function cb(msg) {
-        if (msg.id === id) {
-          chrome.runtime.onMessage.removeListener(cb);
-          res((msg.summary || '').trim());
-        }
-      });
-    });
-
-    if (/^no$/i.test(verdict)) {
-      cell.style.height   = '0px';
-      cell.style.overflow = 'hidden';
-    }
+    queue.push({ id, text });
+    cellMap.set(id, cell);
+    maybeSendBatch();
   }
 
   async function scan() {
     await loadConfig();
     const cells = [...document.querySelectorAll('[data-testid="cellInnerDiv"]')];
     for (const c of cells) {
-      await processCell(c);
+      processCell(c);
     }
+    maybeSendBatch(true);
   }
 
   function start() {

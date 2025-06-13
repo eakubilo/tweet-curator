@@ -10,9 +10,7 @@ const adBlockTabBtn   = document.getElementById('adBlockTabBtn');
 const filteringTab    = document.getElementById('filteringTab');
 const adBlockTab      = document.getElementById('adBlockTab');
 const toggleAdsBtn    = document.getElementById('toggleAds');
-const modelClaude     = document.getElementById('modelClaude');
-const modelGpt        = document.getElementById('modelGpt');
-const modelGrok       = document.getElementById('modelGrok');
+const modelInputs = [...document.querySelectorAll('input[data-model]')];
 
 function showTab(which) {
   filteringTab.classList.remove('active');
@@ -32,20 +30,16 @@ filteringTabBtn.addEventListener('click', () => showTab('filter'));
 adBlockTabBtn.addEventListener('click', () => showTab('ad'));
 
 function getSelectedModels() {
-  const models = [];
-  if (modelClaude.checked) models.push('claude');
-  if (modelGpt.checked)    models.push('gpt');
-  if (modelGrok.checked)   models.push('grok');
-  return models;
+  return modelInputs
+    .filter(i => i.checked)
+    .map(i => i.dataset.model);
 }
 
 function saveModels() {
   chrome.storage.local.set({ models: getSelectedModels() });
 }
 
-modelClaude.addEventListener('change', saveModels);
-modelGpt.addEventListener('change', saveModels);
-modelGrok.addEventListener('change', saveModels);
+modelInputs.forEach(i => i.addEventListener('change', saveModels));
 
 toggleAdsBtn.addEventListener('click', async () => {
   let { filterAds } = await chrome.storage.local.get('filterAds');
@@ -72,9 +66,9 @@ async function updateUI() {
   status.textContent = checking ? 'Checking tweets…' : '';
   toggleAdsBtn.textContent = filterAds ? 'Ad Filtering: On' : 'Ad Filtering: Off';
   const m = new Set(models || []);
-  modelClaude.checked = m.has('claude');
-  modelGpt.checked    = m.has('gpt');
-  modelGrok.checked   = m.has('grok');
+  modelInputs.forEach(i => {
+    i.checked = m.has(i.dataset.model);
+  });
 }
 
 updateUI();
@@ -85,22 +79,31 @@ btn.addEventListener('click', async () => {
 
   if (checking) {
     const filter = input.value.trim();
-    const grokKey = keyInput.value.trim();
-    const gptKey = gptKeyInput.value.trim();
-    const claudeKey = claudeKeyInput.value.trim();
+    const keys = {
+      grok: keyInput.value.trim(),
+      gpt: gptKeyInput.value.trim(),
+      claude: claudeKeyInput.value.trim()
+    };
     const models = getSelectedModels();
-    if (!filter ||
-        (models.includes('grok') && !grokKey) ||
-        (models.includes('gpt') && !gptKey) ||
-        (models.includes('claude') && !claudeKey)) {
-      status.textContent = 'Please enter a filter phrase and required API keys.';
+    if (!filter) {
+      status.textContent = 'Please enter a filter phrase.';
       return;
+    }
+    if (!models.length) {
+      status.textContent = 'Please select at least one model.';
+      return;
+    }
+    for (const m of models) {
+      if (!keys[m]) {
+        status.textContent = 'Please enter a filter phrase and required API keys.';
+        return;
+      }
     }
     await chrome.storage.local.set({
       filter,
-      grokKey,
-      gptKey,
-      claudeKey,
+      grokKey: keys.grok,
+      gptKey: keys.gpt,
+      claudeKey: keys.claude,
       checking: true,
       models
     });

@@ -1,25 +1,39 @@
 // popup.js
-const btn        = document.getElementById('go');
-const input      = document.getElementById('filter');
-const keyInput   = document.getElementById('grokKey');
-const gptKeyInput    = document.getElementById('gptKey');
-const claudeKeyInput = document.getElementById('claudeKey');
-const status     = document.getElementById('status');
+const btn = document.getElementById('go');
+const apiKeyInput = document.getElementById('apiKey');
+const providerSelect = document.getElementById('provider');
+const modelSelect = document.getElementById('model');
+const status = document.getElementById('status');
 const filteringTabBtn = document.getElementById('filteringTabBtn');
-const adBlockTabBtn   = document.getElementById('adBlockTabBtn');
-const filteringTab    = document.getElementById('filteringTab');
-const adBlockTab      = document.getElementById('adBlockTab');
-const toggleAdsBtn    = document.getElementById('toggleAds');
-const modelInputs = [...document.querySelectorAll('input[data-model]')];
+const filtersTabBtn = document.getElementById('filtersTabBtn');
+const adBlockTabBtn = document.getElementById('adBlockTabBtn');
+const filteringTab = document.getElementById('filteringTab');
+const filtersTab = document.getElementById('filtersTab');
+const adBlockTab = document.getElementById('adBlockTab');
+const toggleAdsBtn = document.getElementById('toggleAds');
+const newFilterInput = document.getElementById('newFilter');
+const addFilterBtn = document.getElementById('addFilter');
+const filterList = document.getElementById('filterList');
+
+const modelsByProvider = {
+  grok: ['grok-3-latest'],
+  gpt: ['gpt-3.5-turbo', 'gpt-4-turbo'],
+  claude: ['claude-3-sonnet-20240229', 'claude-3-opus-20240229']
+};
 
 function showTab(which) {
   filteringTab.classList.remove('active');
+  filtersTab.classList.remove('active');
   adBlockTab.classList.remove('active');
   filteringTabBtn.classList.remove('active');
+  filtersTabBtn.classList.remove('active');
   adBlockTabBtn.classList.remove('active');
   if (which === 'ad') {
     adBlockTab.classList.add('active');
     adBlockTabBtn.classList.add('active');
+  } else if (which === 'filters') {
+    filtersTab.classList.add('active');
+    filtersTabBtn.classList.add('active');
   } else {
     filteringTab.classList.add('active');
     filteringTabBtn.classList.add('active');
@@ -27,19 +41,47 @@ function showTab(which) {
 }
 
 filteringTabBtn.addEventListener('click', () => showTab('filter'));
+filtersTabBtn.addEventListener('click', () => showTab('filters'));
 adBlockTabBtn.addEventListener('click', () => showTab('ad'));
 
-function getSelectedModels() {
-  return modelInputs
-    .filter(i => i.checked)
-    .map(i => i.dataset.model);
+function populateModels(provider) {
+  modelSelect.innerHTML = '';
+  (modelsByProvider[provider] || []).forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    modelSelect.appendChild(opt);
+  });
 }
 
-function saveModels() {
-  chrome.storage.local.set({ models: getSelectedModels() });
+async function loadApiKey(provider) {
+  const { apiKeys = {} } = await chrome.storage.local.get('apiKeys');
+  apiKeyInput.value = apiKeys[provider] || '';
 }
 
-modelInputs.forEach(i => i.addEventListener('change', saveModels));
+async function saveApiKey() {
+  const provider = providerSelect.value;
+  const { apiKeys = {} } = await chrome.storage.local.get('apiKeys');
+  apiKeys[provider] = apiKeyInput.value.trim();
+  await chrome.storage.local.set({ apiKeys });
+}
+
+apiKeyInput.addEventListener('input', saveApiKey);
+
+async function saveProviderModel() {
+  await chrome.storage.local.set({
+    provider: providerSelect.value,
+    model: modelSelect.value
+  });
+  loadApiKey(providerSelect.value);
+}
+
+providerSelect.addEventListener('change', () => {
+  populateModels(providerSelect.value);
+  saveProviderModel();
+});
+
+modelSelect.addEventListener('change', saveProviderModel);
 
 toggleAdsBtn.addEventListener('click', async () => {
   let { filterAds } = await chrome.storage.local.get('filterAds');
@@ -48,27 +90,54 @@ toggleAdsBtn.addEventListener('click', async () => {
   toggleAdsBtn.textContent = filterAds ? 'Ad Filtering: On' : 'Ad Filtering: Off';
 });
 
-async function updateUI() {
-  const { checking, filter, grokKey, gptKey, claudeKey, filterAds, models } = await chrome.storage.local.get([
-    'checking',
-    'filter',
-    'grokKey',
-    'gptKey',
-    'claudeKey',
-    'filterAds',
-    'models'
-  ]);
-  input.value = filter || '';
-  keyInput.value = grokKey || '';
-  gptKeyInput.value = gptKey || '';
-  claudeKeyInput.value = claudeKey || '';
-  btn.textContent = checking ? 'Stop Checking' : 'Check Tweets';
-  status.textContent = checking ? 'Checking tweets…' : '';
-  toggleAdsBtn.textContent = filterAds ? 'Ad Filtering: On' : 'Ad Filtering: Off';
-  const m = new Set(models || []);
-  modelInputs.forEach(i => {
-    i.checked = m.has(i.dataset.model);
+function renderFilters(filters) {
+  filterList.innerHTML = '';
+  filters.forEach((f, idx) => {
+    const li = document.createElement('li');
+    li.textContent = f;
+    const btn = document.createElement('button');
+    btn.textContent = 'Delete';
+    btn.addEventListener('click', async () => {
+      const { filters: arr = [] } = await chrome.storage.local.get('filters');
+      arr.splice(idx, 1);
+      await chrome.storage.local.set({ filters: arr });
+      renderFilters(arr);
+    });
+    li.appendChild(btn);
+    filterList.appendChild(li);
   });
+}
+
+addFilterBtn.addEventListener('click', async () => {
+  const val = newFilterInput.value.trim();
+  if (!val) return;
+  const { filters = [] } = await chrome.storage.local.get('filters');
+  filters.push(val);
+  await chrome.storage.local.set({ filters });
+  newFilterInput.value = '';
+  renderFilters(filters);
+});
+
+async function updateUI() {
+  const cfg = await chrome.storage.local.get([
+    'checking',
+    'provider',
+    'model',
+    'apiKeys',
+    'filters',
+    'filterAds'
+  ]);
+
+  const provider = cfg.provider || 'grok';
+  const model = cfg.model || modelsByProvider[provider][0];
+  providerSelect.value = provider;
+  populateModels(provider);
+  modelSelect.value = model;
+  apiKeyInput.value = (cfg.apiKeys || {})[provider] || '';
+  toggleAdsBtn.textContent = cfg.filterAds ? 'Ad Filtering: On' : 'Ad Filtering: Off';
+  btn.textContent = cfg.checking ? 'Stop Checking' : 'Check Tweets';
+  status.textContent = cfg.checking ? 'Checking tweets…' : '';
+  renderFilters(cfg.filters || []);
 }
 
 updateUI();
@@ -78,34 +147,25 @@ btn.addEventListener('click', async () => {
   checking = !checking;
 
   if (checking) {
-    const filter = input.value.trim();
-    const keys = {
-      grok: keyInput.value.trim(),
-      gpt: gptKeyInput.value.trim(),
-      claude: claudeKeyInput.value.trim()
-    };
-    const models = getSelectedModels();
-    if (!filter) {
-      status.textContent = 'Please enter a filter phrase.';
+    const provider = providerSelect.value;
+    const model = modelSelect.value;
+    const { apiKeys = {}, filters = [] } = await chrome.storage.local.get([
+      'apiKeys',
+      'filters'
+    ]);
+    const key = apiKeys[provider];
+    if (!filters.length) {
+      status.textContent = 'Please add at least one filter.';
       return;
     }
-    if (!models.length) {
-      status.textContent = 'Please select at least one model.';
+    if (!key) {
+      status.textContent = 'Please enter the API key.';
       return;
-    }
-    for (const m of models) {
-      if (!keys[m]) {
-        status.textContent = 'Please enter a filter phrase and required API keys.';
-        return;
-      }
     }
     await chrome.storage.local.set({
-      filter,
-      grokKey: keys.grok,
-      gptKey: keys.gpt,
-      claudeKey: keys.claude,
-      checking: true,
-      models
+      provider,
+      model,
+      checking: true
     });
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     await chrome.scripting.executeScript({
@@ -117,6 +177,5 @@ btn.addEventListener('click', async () => {
     await chrome.storage.local.set({ checking: false });
     status.textContent = 'Paused.';
   }
-
   btn.textContent = checking ? 'Stop Checking' : 'Check Tweets';
 });

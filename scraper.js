@@ -2,28 +2,25 @@
 (function () {
   const CHECKED_ATTR = 'data-tc-checked';
   let observer;
-  let filter = '';
-  let grokKey = '';
-  let gptKey = '';
-  let claudeKey = '';
+  let filters = [];
+  let apiKeys = {};
+  let provider = 'grok';
+  let model = 'grok-3-latest';
   let filterAds = true;
-  let models = ['grok'];
 
   async function loadConfig() {
     const cfg = await chrome.storage.local.get([
-      'filter',
-      'grokKey',
-      'gptKey',
-      'claudeKey',
-      'filterAds',
-      'models'
+      'filters',
+      'apiKeys',
+      'provider',
+      'model',
+      'filterAds'
     ]);
-    filter = cfg.filter || '';
-    grokKey = cfg.grokKey || '';
-    gptKey = cfg.gptKey || '';
-    claudeKey = cfg.claudeKey || '';
+    filters = cfg.filters || [];
+    apiKeys = cfg.apiKeys || {};
+    provider = cfg.provider || 'grok';
+    model = cfg.model || 'grok-3-latest';
     filterAds = cfg.filterAds !== false;
-    models = cfg.models || ['grok'];
   }
 
   const BATCH_SIZE = 5;
@@ -39,7 +36,7 @@
     const batch = queue.splice(0, BATCH_SIZE);
     const ids = batch.map(b => b.id);
     const tweets = batch.map(b => b.text);
-    chrome.runtime.sendMessage({ tweets, ids, filter });
+    chrome.runtime.sendMessage({ tweets, ids, filters });
   }
 
   chrome.runtime.onMessage.addListener(msg => {
@@ -76,11 +73,8 @@
       cell.style.overflow = 'hidden';
       return;
     }
-    if (!filter) return;
-    const needGrok  = models.includes('grok') && !grokKey;
-    const needGpt   = models.includes('gpt') && !gptKey;
-    const needClaude= models.includes('claude') && !claudeKey;
-    if (needGrok || needGpt || needClaude) return;
+    if (!filters.length) return;
+    if (!apiKeys[provider]) return;
 
     const textNode = cell.querySelector('[data-testid="tweetText"]');
     if (!textNode) return;
@@ -122,12 +116,11 @@
         changes.checking.newValue ? start() : stop();
       }
       if (
-        'filter' in changes ||
-        'grokKey' in changes ||
-        'gptKey' in changes ||
-        'claudeKey' in changes ||
-        'filterAds' in changes ||
-        'models' in changes
+        'filters' in changes ||
+        'apiKeys' in changes ||
+        'provider' in changes ||
+        'model' in changes ||
+        'filterAds' in changes
       ) {
         loadConfig();
       }

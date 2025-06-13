@@ -11,7 +11,7 @@
         color: #fff;
       }
 
-      input, button {
+      input, button, select {
         width: 100%;
         margin-top: 8px;
         padding: 8px;
@@ -36,6 +36,11 @@
 
       button:hover {
         background: #ff6b81;
+      }
+
+      select {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
       }
 
       #status {
@@ -72,35 +77,55 @@
         display: block;
       }
 
-      .models {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 6px;
+
+      #filterList {
+        list-style: none;
+        padding: 0;
+        margin-top: 8px;
       }
 
-      .models label {
-        flex: 1;
+      #filterList li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+        padding: 4px;
+        margin-top: 4px;
         font-size: 12px;
+      }
+
+      #filterList button {
+        width: auto;
+        padding: 4px 6px;
+        font-size: 12px;
+        margin-left: 4px;
       }
     </style>
   </head>
   <body>
     <div class="tabs">
       <div id="filteringTabBtn" class="tab-btn active">Filtering</div>
+      <div id="filtersTabBtn" class="tab-btn">Filters</div>
       <div id="adBlockTabBtn" class="tab-btn">Ad Blocking</div>
     </div>
 
     <div id="filteringTab" class="tab active">
-      <input id="filter" type="text" placeholder="Enter filter phrase…" />
-      <input id="grokKey" type="password" placeholder="Enter Grok API key…" />
-      <input id="gptKey" type="password" placeholder="Enter GPT API key…" />
-      <input id="claudeKey" type="password" placeholder="Enter Claude API key…" />
-      <div class="models">
-        <label><input type="checkbox" id="modelClaude" data-model="claude"> Claude</label>
-        <label><input type="checkbox" id="modelGpt" data-model="gpt"> GPT</label>
-        <label><input type="checkbox" id="modelGrok" data-model="grok"> Grok</label>
-      </div>
+      <select id="provider">
+        <option value="grok">Grok</option>
+        <option value="gpt">OpenAI</option>
+        <option value="claude">Anthropic</option>
+      </select>
+      <select id="model"></select>
+      <input id="apiKey" type="password" placeholder="Enter API key…" />
       <button id="go">Check Tweets</button>
+    </div>
+
+    <div id="filtersTab" class="tab">
+      <input id="newFilter" type="text" placeholder="Add filter phrase…" />
+      <button id="addFilter">Add Filter</button>
+      <ul id="filterList"></ul>
     </div>
 
     <div id="adBlockTab" class="tab">

@@ -1,16 +1,27 @@
 // popup.js
 const btn        = document.getElementById('go');
 const input      = document.getElementById('filter');
-const keyInput   = document.getElementById('grokKey');
-const gptKeyInput    = document.getElementById('gptKey');
-const claudeKeyInput = document.getElementById('claudeKey');
+const providerSelect = document.getElementById('provider');
+const modelSelect    = document.getElementById('model');
+const keyInput       = document.getElementById('apiKey');
 const status     = document.getElementById('status');
 const filteringTabBtn = document.getElementById('filteringTabBtn');
 const adBlockTabBtn   = document.getElementById('adBlockTabBtn');
 const filteringTab    = document.getElementById('filteringTab');
 const adBlockTab      = document.getElementById('adBlockTab');
 const toggleAdsBtn    = document.getElementById('toggleAds');
-const modelInputs = [...document.querySelectorAll('input[data-model]')];
+
+const PROVIDERS = {
+  openai: ['gpt-3.5-turbo', 'gpt-4o'],
+  anthropic: ['claude-3-sonnet-20240229', 'claude-3-opus-20240229'],
+  xai: ['grok-3-latest']
+};
+
+function updateModelOptions() {
+  const provider = providerSelect.value;
+  const models = PROVIDERS[provider] || [];
+  modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+}
 
 function showTab(which) {
   filteringTab.classList.remove('active');
@@ -29,17 +40,12 @@ function showTab(which) {
 filteringTabBtn.addEventListener('click', () => showTab('filter'));
 adBlockTabBtn.addEventListener('click', () => showTab('ad'));
 
-function getSelectedModels() {
-  return modelInputs
-    .filter(i => i.checked)
-    .map(i => i.dataset.model);
-}
+providerSelect.addEventListener('change', async () => {
+  updateModelOptions();
+  const { apiKeys } = await chrome.storage.local.get('apiKeys');
+  keyInput.value = (apiKeys && apiKeys[providerSelect.value]) || '';
+});
 
-function saveModels() {
-  chrome.storage.local.set({ models: getSelectedModels() });
-}
-
-modelInputs.forEach(i => i.addEventListener('change', saveModels));
 
 toggleAdsBtn.addEventListener('click', async () => {
   let { filterAds } = await chrome.storage.local.get('filterAds');
@@ -49,63 +55,47 @@ toggleAdsBtn.addEventListener('click', async () => {
 });
 
 async function updateUI() {
-  const { checking, filter, grokKey, gptKey, claudeKey, filterAds, models } = await chrome.storage.local.get([
+  const { checking, filter, provider, model, apiKeys, filterAds } = await chrome.storage.local.get([
     'checking',
     'filter',
-    'grokKey',
-    'gptKey',
-    'claudeKey',
-    'filterAds',
-    'models'
+    'provider',
+    'model',
+    'apiKeys',
+    'filterAds'
   ]);
   input.value = filter || '';
-  keyInput.value = grokKey || '';
-  gptKeyInput.value = gptKey || '';
-  claudeKeyInput.value = claudeKey || '';
+  providerSelect.value = provider || 'openai';
+  updateModelOptions();
+  modelSelect.value = model || modelSelect.querySelector('option')?.value || '';
+  keyInput.value = (apiKeys && apiKeys[providerSelect.value]) || '';
   btn.textContent = checking ? 'Stop Checking' : 'Check Tweets';
   status.textContent = checking ? 'Checking tweets…' : '';
   toggleAdsBtn.textContent = filterAds ? 'Ad Filtering: On' : 'Ad Filtering: Off';
-  const m = new Set(models || []);
-  modelInputs.forEach(i => {
-    i.checked = m.has(i.dataset.model);
-  });
 }
 
 updateUI();
 
 btn.addEventListener('click', async () => {
-  let { checking } = await chrome.storage.local.get('checking');
+  let { checking, apiKeys } = await chrome.storage.local.get(['checking', 'apiKeys']);
   checking = !checking;
 
   if (checking) {
     const filter = input.value.trim();
-    const keys = {
-      grok: keyInput.value.trim(),
-      gpt: gptKeyInput.value.trim(),
-      claude: claudeKeyInput.value.trim()
-    };
-    const models = getSelectedModels();
-    if (!filter) {
-      status.textContent = 'Please enter a filter phrase.';
+    const provider = providerSelect.value;
+    const model = modelSelect.value;
+    const key = keyInput.value.trim();
+    if (!filter || !key) {
+      status.textContent = 'Please enter a filter phrase and API key.';
       return;
     }
-    if (!models.length) {
-      status.textContent = 'Please select at least one model.';
-      return;
-    }
-    for (const m of models) {
-      if (!keys[m]) {
-        status.textContent = 'Please enter a filter phrase and required API keys.';
-        return;
-      }
-    }
+    apiKeys = apiKeys || {};
+    apiKeys[provider] = key;
     await chrome.storage.local.set({
       filter,
-      grokKey: keys.grok,
-      gptKey: keys.gpt,
-      claudeKey: keys.claude,
-      checking: true,
-      models
+      provider,
+      model,
+      apiKeys,
+      checking: true
     });
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     await chrome.scripting.executeScript({

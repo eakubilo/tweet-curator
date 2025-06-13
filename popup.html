@@ -72,16 +72,6 @@
         display: block;
       }
 
-      .models {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 6px;
-      }
-
-      .models label {
-        flex: 1;
-        font-size: 12px;
-      }
     </style>
   </head>
   <body>
@@ -92,14 +82,13 @@
 
     <div id="filteringTab" class="tab active">
       <input id="filter" type="text" placeholder="Enter filter phrase…" />
-      <input id="grokKey" type="password" placeholder="Enter Grok API key…" />
-      <input id="gptKey" type="password" placeholder="Enter GPT API key…" />
-      <input id="claudeKey" type="password" placeholder="Enter Claude API key…" />
-      <div class="models">
-        <label><input type="checkbox" id="modelClaude" data-model="claude"> Claude</label>
-        <label><input type="checkbox" id="modelGpt" data-model="gpt"> GPT</label>
-        <label><input type="checkbox" id="modelGrok" data-model="grok"> Grok</label>
-      </div>
+      <select id="provider">
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+        <option value="xai">xAI</option>
+      </select>
+      <select id="model"></select>
+      <input id="apiKey" type="password" placeholder="Enter API key…" />
       <button id="go">Check Tweets</button>
     </div>
 

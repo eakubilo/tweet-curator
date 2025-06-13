@@ -3,27 +3,24 @@
   const CHECKED_ATTR = 'data-tc-checked';
   let observer;
   let filter = '';
-  let grokKey = '';
-  let gptKey = '';
-  let claudeKey = '';
+  let provider = 'openai';
+  let model = 'gpt-3.5-turbo';
+  let apiKeys = {};
   let filterAds = true;
-  let models = ['grok'];
 
   async function loadConfig() {
     const cfg = await chrome.storage.local.get([
       'filter',
-      'grokKey',
-      'gptKey',
-      'claudeKey',
-      'filterAds',
-      'models'
+      'provider',
+      'model',
+      'apiKeys',
+      'filterAds'
     ]);
     filter = cfg.filter || '';
-    grokKey = cfg.grokKey || '';
-    gptKey = cfg.gptKey || '';
-    claudeKey = cfg.claudeKey || '';
+    provider = cfg.provider || 'openai';
+    model = cfg.model || 'gpt-3.5-turbo';
+    apiKeys = cfg.apiKeys || {};
     filterAds = cfg.filterAds !== false;
-    models = cfg.models || ['grok'];
   }
 
   async function processCell(cell) {
@@ -44,10 +41,7 @@
       return;
     }
     if (!filter) return;
-    const needGrok  = models.includes('grok') && !grokKey;
-    const needGpt   = models.includes('gpt') && !gptKey;
-    const needClaude= models.includes('claude') && !claudeKey;
-    if (needGrok || needGpt || needClaude) return;
+    if (!apiKeys[provider]) return;
 
     const textNode = cell.querySelector('[data-testid="tweetText"]');
     if (!textNode) return;
@@ -109,11 +103,10 @@ Tweet:
       }
       if (
         'filter' in changes ||
-        'grokKey' in changes ||
-        'gptKey' in changes ||
-        'claudeKey' in changes ||
-        'filterAds' in changes ||
-        'models' in changes
+        'provider' in changes ||
+        'model' in changes ||
+        'apiKeys' in changes ||
+        'filterAds' in changes
       ) {
         loadConfig();
       }

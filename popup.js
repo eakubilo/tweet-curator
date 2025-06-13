@@ -16,7 +16,15 @@ const addFilterBtn = document.getElementById('addFilter');
 const filterList = document.getElementById('filterList');
 
 const modelsByProvider = {
-  grok: ['grok-3-latest'],
+  // Updated to reflect current Grok model lineup
+  grok: [
+    'grok-3',
+    'grok-3-mini',
+    'grok-3-fast',
+    'grok-3-mini-fast',
+    'grok-2-1212',
+    'grok-2-vision-1212'
+  ],
   gpt: ['gpt-3.5-turbo', 'gpt-4-turbo'],
   claude: ['claude-3-sonnet-20240229', 'claude-3-opus-20240229']
 };

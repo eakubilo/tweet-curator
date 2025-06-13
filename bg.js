@@ -2,7 +2,7 @@
 chrome.runtime.onMessage.addListener(async (msg, sender) => {
   if (!msg.prompt && !Array.isArray(msg.tweets)) return;
 
-  const { apiKeys = {}, provider = 'grok', model = 'grok-3-latest' } = await chrome.storage.local.get([
+  const { apiKeys = {}, provider = 'grok', model = 'grok-3' } = await chrome.storage.local.get([
     'apiKeys',
     'provider',
     'model'

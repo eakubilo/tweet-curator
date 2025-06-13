@@ -21,11 +21,14 @@
       stop();
       return;
     }
-    // skip ads
+    // hide ads
     if ([...cell.querySelectorAll('span.css-1jxf684')]
           .some(s => s.textContent.trim() === 'Ad')) {
+      cell.style.height   = '0px';
+      cell.style.overflow = 'hidden';
       return;
     }
+    if (!filter || !grokKey) return;
 
     const textNode = cell.querySelector('[data-testid="tweetText"]');
     if (!textNode) return;
@@ -60,7 +63,6 @@ Tweet:
 
   async function scan() {
     await loadConfig();
-    if (!filter || !grokKey) return;
     const cells = [...document.querySelectorAll('[data-testid="cellInnerDiv"]')];
     for (const c of cells) {
       await processCell(c);

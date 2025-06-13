@@ -1,20 +1,22 @@
 // popup.js
-const btn    = document.getElementById('go');
-const input  = document.getElementById('filter');
-const status = document.getElementById('status');
+const btn      = document.getElementById('go');
+const input    = document.getElementById('filter');
+const keyInput = document.getElementById('grokKey');
+const status   = document.getElementById('status');
 
 btn.addEventListener('click', async () => {
   const filter = input.value.trim();
-  if (!filter) {
-    status.textContent = 'Please enter a filter phrase.';
+  const grokKey = keyInput.value.trim();
+  if (!filter || !grokKey) {
+    status.textContent = 'Please enter both a filter phrase and API key.';
     return;
   }
 
   btn.disabled    = true;
   status.textContent = 'Running…';
 
-  // store filter for scraper.js
-  await chrome.storage.local.set({ filter });
+  // store filter and API key for scripts
+  await chrome.storage.local.set({ filter, grokKey });
 
   // inject scraper into the current tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

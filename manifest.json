@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Tweet Filter",
+  "version": "1.0",
+  "permissions": [
+    "scripting",
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://api.x.ai/*",
+    "https://x.com/*",
+    "https://twitter.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "bg.js"
+  }
+}
